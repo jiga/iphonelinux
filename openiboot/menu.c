@@ -20,6 +20,7 @@
 #include "radio.h"
 #include "hfs/fs.h"
 #include "ftl.h"
+#include "scripting.h"
 
 int globalFtlHasBeenRestored = 0; /* global variable to tell wether a ftl_restore has been done*/
 
@@ -122,18 +123,16 @@ int menu_setup(int timeout) {
 		}
 #ifndef CONFIG_IPOD
 		if(!buttons_is_pushed(BUTTONS_VOLUP)) {
-            Selection = MenuSelectioniPhoneOS;
+			Selection = MenuSelectioniPhoneOS;
 
-            drawSelectionBox();
-			//toggle();
+			drawSelectionBox();
 			startTime = timer_get_system_microtime();
 			udelay(200000);
 		}
 		if(!buttons_is_pushed(BUTTONS_VOLDOWN)) {
-            Selection = MenuSelectionConsole;
+			Selection = MenuSelectionConsole;
 
-            drawSelectionBox();
-			//toggle();
+			drawSelectionBox();
 			startTime = timer_get_system_microtime();
 			udelay(200000);
 		}
@@ -183,7 +182,7 @@ int menu_setup(int timeout) {
 				}
 
 				pmu_set_iboot_stage(0);
-
+				startScripting("linux"); //start script mode if there is a script file
 				boot_linux_from_files();
 			}
 
