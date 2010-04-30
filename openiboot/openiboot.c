@@ -37,7 +37,7 @@
 #include "scripting.h"
 
 #include "radio.h"
-#include "wm8958.h"
+#include "wmcodec.h"
 #include "wdt.h"
 #include "als.h"
 

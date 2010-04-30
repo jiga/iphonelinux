@@ -47,12 +47,13 @@ void audiohw_init()
 
 void wmcodec_write(int reg, int data)
 {
-	unsigned char d = data & 0xff;
-	uint8_t buffer[2];
-	buffer[0] = (reg << 1) | ((data & 0x100) >> 8);
-	buffer[1] = d;
+	uint8_t buffer[3];
 
-	i2c_tx(WMCODEC_I2C, WMCODEC_I2C_SLAVE_ADDR, buffer, 2);
+    buffer[0] = reg & 0xFF;
+    buffer[1] = (data >> 8) & 0xFF;
+    buffer[2] = data & 0xFF;
+
+	i2c_tx(WMCODEC_I2C, WMCODEC_I2C_SLAVE_ADDR, buffer, 3);
 }
 
 static void iis_transfer_done(int status, int controller, int channel)
@@ -164,73 +165,74 @@ void audiohw_play_pcm(const void* addr_in, uint32_t size, int use_speaker)
 
 #define VOLUME_MIN -890
 
-/* Register addresses as per datasheet Rev.4.4 */
+/* Register addresses as per datasheet */
 #define RESET       0x00
 #define PWRMGMT1    0x01
 #define PWRMGMT2    0x02
 #define PWRMGMT3    0x03
-#define AINTFCE     0x04
-#define COMPAND     0x05
-#define CLKGEN      0x06
-#define SRATECTRL   0x07
-#define GPIOCTL     0x08
-#define JACKDETECT0 0x09
+#define AINTFCE1    0x04
+#define AINTFCE2    0x05
+#define CLOCKIN1    0x06
+#define CLOCKIN2    0x07
+#define AINTFCE3    0x08
+#define AINTFCE4    0x09
 #define DACCTRL     0x0a
 #define LDACVOL     0x0b
 #define RDACVOL     0x0c
-#define JACKDETECT1 0x0d
+#define DST         0x0d
 #define ADCCTL      0x0e
 #define LADCVOL     0x0f
 #define RADCVOL     0x10
+#define GPIOCTL1    0x12
+#define GPIO12      0x13
+#define GPIO34      0x14
+#define GPIO56      0x15
+#define GPIOCTL2    0x16
+#define GPIOPOL     0x17
+#define LLINPUT12V  0x18
+#define LLINPUT34V  0x19
+#define RLINPUT12V  0x1a
+#define RLINPUT34V  0x1b
+#define LOUTVOL     0x1c
+#define ROUTVOL     0x1d
+#define LINOUTVOL   0x1e
+#define OUT34VOL    0x1f
+#define LOPGAVOL    0x20
+#define ROPGAVOL    0x21
+#define SPKRVOL     0x22
+#define CLASSD1     0x23
+#define CLASSD3     0x25
+#define INMIXR1     0x27
+#define INMIXR2     0x28
+#define INMIXR3     0x29
+#define INMIXR4     0x2a
+#define INMIXR5     0x2b
+#define INMIXR6     0x2c
+#define OUTMIXR1    0x2d
+#define OUTMIXR2    0x2e
+#define OUTMIXR3    0x2f
+#define OUTMIXR4    0x30
+#define OUTMIXR5    0x31
+#define OUTMIXR6    0x32
+#define OUT34MIXR   0x33
+#define LINMIXR1    0x34
+#define LINMIXR2    0x35
+#define SPKRMIXR    0x36
+#define ADNLCTRL    0x37
+#define ANTIPOP1    0x38
+#define ANTIPOP2    0x39
+#define MICBIAS     0x3a
+#define PLL1        0x3c
+#define PLL2        0x3d
+#define PLL3        0x3e
 
-#define EQ1         0x12
-#define EQ2         0x13
-#define EQ3         0x14
-#define EQ4         0x15
-#define EQ5         0x16
+
+
 #define EQ_GAIN_MASK       0x001f
 #define EQ_CUTOFF_MASK     0x0060
 #define EQ_GAIN_VALUE(x)   (((-x) + 12) & 0x1f)
 #define EQ_CUTOFF_VALUE(x) ((((x) - 1) & 0x03) << 5)
 
-#define CLASSDCTL   0x17
-#define DACLIMIT1   0x18
-#define DACLIMIT2   0x19
-
-#define NOTCH1      0x1b
-#define NOTCH2      0x1c
-#define NOTCH3      0x1d
-#define NOTCH4      0x1e
-
-#define ALCCTL1     0x20
-#define ALCCTL2     0x21
-#define ALCCTL3     0x22
-#define NOISEGATE   0x23
-#define PLLN        0x24
-#define PLLK1       0x25
-#define PLLK2       0x26
-#define PLLK3       0x27
-
-#define THREEDCTL   0x29
-#define OUT4ADC     0x2a
-#define BEEPCTRL    0x2b
-#define INCTRL      0x2c
-#define LINPGAGAIN  0x2d
-#define RINPGAGAIN  0x2e
-#define LADCBOOST   0x2f
-#define RADCBOOST   0x30
-#define OUTCTRL     0x31
-#define LOUTMIX     0x32
-#define ROUTMIX     0x33
-#define LOUT1VOL    0x34
-#define ROUT1VOL    0x35
-#define LOUT2VOL    0x36
-#define ROUT2VOL    0x37
-#define OUT3MIX     0x38
-#define OUT4MIX     0x39
-
-#define BIASCTL     0x3d
-#define WMREG_3E    0x3e
 
 const struct sound_settings_info audiohw_settings[] = {
     [SOUND_VOLUME]        = {"dB", 0,  1, -57,   6, -25},
@@ -273,10 +275,20 @@ int tenthdb2master(int db)
 /* Silently enable / disable audio output */
 void audiohw_preinit(void)
 {
-    wmcodec_write(RESET,    0x1ff);    /* Reset */
+    wmcodec_write(RESET,    0x0);    /* Reset */
 
-    wmcodec_write(LOUT1VOL, 0xc0);
-    wmcodec_write(ROUT1VOL, 0x1c0);
+    wmcodec_write(AINTFCE4, 0x8040); 
+
+    wmcodec_write(GPIO12,0x1001);
+
+    wmcodec_write(PWRMGMT1, 0x7);   /* BIASEN = 1, PLLEN = 1, BUFIOEN = 1, VMIDSEL = 1 */
+    wmcodec_write(PWRMGMT2, 0x6800);
+
+    wmcodec_write(DACCTRL,  0x0);
+
+    wmcodec_write(LOUTVOL, 0x50 | (1<<8));
+    wmcodec_write(ROUTVOL, 0x50 | (1<<8));
+#if 0
     wmcodec_write(LOUT2VOL, 0xb9);
     wmcodec_write(ROUT2VOL, 0x1b9);
 
@@ -343,6 +355,7 @@ void audiohw_preinit(void)
     wmcodec_write(OUT4MIX,  0x40);
 
     wmcodec_write(WMREG_3E, 0x8c90);
+#endif
 }
 
 void audiohw_mute(int mute)
@@ -350,10 +363,10 @@ void audiohw_mute(int mute)
     if (mute)
     {
         /* Set DACMU = 1 to soft-mute the audio DACs. */
-    	wmcodec_write(DACCTRL, 0x43);
+    	wmcodec_write(DACCTRL, 0x4);
     } else {
         /* Set DACMU = 0 to soft-un-mute the audio DACs. */
-    	wmcodec_write(DACCTRL, 0x3);
+    	wmcodec_write(DACCTRL, 0x0);
     }
 }
 
@@ -365,46 +378,46 @@ void audiohw_postinit(void)
 void audiohw_set_headphone_vol(int vol_l, int vol_r)
 {
     /* OUT1 */
-    wmcodec_write(LOUT1VOL, 0x080 | vol_l);
-    wmcodec_write(ROUT1VOL, 0x180 | vol_r);
+    wmcodec_write(LOUTVOL, 0x180 | vol_l);
+    wmcodec_write(ROUTVOL, 0x180 | vol_r);
 }
 
 void audiohw_set_lineout_vol(int vol_l, int vol_r)
 {
     /* OUT2 */
-    wmcodec_write(LOUT2VOL, 0x080 | vol_l);
-    wmcodec_write(ROUT2VOL, 0x180 | vol_r);
+    wmcodec_write(LINOUTVOL, vol_l);
+    //wmcodec_write(ROUT2VOL, 0x180 | vol_r);
 }
 
 void audiohw_set_aux_vol(int vol_l, int vol_r)
 {
     /* OUTMIX */
-    wmcodec_write(LOUTMIX, 0x111 | (vol_l << 5) );
-    wmcodec_write(ROUTMIX, 0x111 | (vol_r << 5) );
+    wmcodec_write(OUTMIXR5, (vol_l << 5) );
+    wmcodec_write(OUTMIXR6, (vol_r << 5) );
 }
 
 void audiohw_set_bass(int value)
 {
-    eq1_reg = (eq1_reg & ~EQ_GAIN_MASK) | EQ_GAIN_VALUE(value);
-    wmcodec_write(EQ1, 0x100 | eq1_reg);
+    //eq1_reg = (eq1_reg & ~EQ_GAIN_MASK) | EQ_GAIN_VALUE(value);
+    //wmcodec_write(EQ1, 0x100 | eq1_reg);
 }
 
 void audiohw_set_bass_cutoff(int value)
 {
-    eq1_reg = (eq1_reg & ~EQ_CUTOFF_MASK) | EQ_CUTOFF_VALUE(value);
-    wmcodec_write(EQ1, 0x100 | eq1_reg);
+    //eq1_reg = (eq1_reg & ~EQ_CUTOFF_MASK) | EQ_CUTOFF_VALUE(value);
+    //wmcodec_write(EQ1, 0x100 | eq1_reg);
 }
 
 void audiohw_set_treble(int value)
 {
-    eq5_reg = (eq5_reg & ~EQ_GAIN_MASK) | EQ_GAIN_VALUE(value);
-    wmcodec_write(EQ5, eq5_reg);
+    //eq5_reg = (eq5_reg & ~EQ_GAIN_MASK) | EQ_GAIN_VALUE(value);
+    //wmcodec_write(EQ5, eq5_reg);
 }
 
 void audiohw_set_treble_cutoff(int value)
 {
-    eq5_reg = (eq5_reg & ~EQ_CUTOFF_MASK) | EQ_CUTOFF_VALUE(value);
-    wmcodec_write(EQ5, eq5_reg);
+    //eq5_reg = (eq5_reg & ~EQ_CUTOFF_MASK) | EQ_CUTOFF_VALUE(value);
+    //wmcodec_write(EQ5, eq5_reg);
 }
 
 /* Nice shutdown of WM8985 codec */
@@ -433,22 +446,24 @@ void audiohw_enable_recording(bool source_mic)
 {
     (void)source_mic; /* We only have a line-in (I think) */
 
-    wmcodec_write(RESET, 0x1ff);    /*Reset*/
+    wmcodec_write(RESET, 0x0);    /*Reset*/
 
-    wmcodec_write(PWRMGMT1, 0x2b);
-    wmcodec_write(PWRMGMT2, 0x18f);  /* Enable ADC - 0x0c enables left/right PGA input, and 0x03 turns on power to the ADCs */
-    wmcodec_write(PWRMGMT3, 0x6f);
+    wmcodec_write(PWRMGMT1, 0x12);
+    wmcodec_write(PWRMGMT2, 0xbf3);  /* Enable ADC - 0x0c enables left/right PGA input, and 0x03 turns on power to the ADCs */
+    wmcodec_write(PWRMGMT3, 0x1f3);
 
-    wmcodec_write(AINTFCE, 0x10);
-    wmcodec_write(CLKCTRL, 0x49);
+    wmcodec_write(AINTFCE1, 0x10);
+    wmcodec_write(AINTFCE2, 0x1e);
+    wmcodec_write(CLKCTRL1, 0x0);
+    wmcodec_write(CLKCTRL2, 0x0);
 
-    wmcodec_write(OUTCTRL, 1);
+    wmcodec_write(ADCCTL, 0x140);
 
     /* The iPod can handle multiple frequencies, but fix at 44.1KHz
        for now */
     audiohw_set_frequency(HW_FREQ_DEFAULT);
 
-    wmcodec_write(INCTRL,0x44);  /* Connect L2 and R2 inputs */
+    //wmcodec_write(INCTRL,0x44);  /* Connect L2 and R2 inputs */
 
     /* Set L2/R2_2BOOSTVOL to 0db (bits 4-6) */
     /* 000 = disabled
@@ -460,16 +475,16 @@ void audiohw_enable_recording(bool source_mic)
        110 = 3dB
        111 = 6dB
     */
-    wmcodec_write(LADCBOOST,0x50);
-    wmcodec_write(RADCBOOST,0x50);
+    //wmcodec_write(LADCBOOST,0x50);
+    //wmcodec_write(RADCBOOST,0x50);
 
     /* Set L/R input PGA Volume to 0db */
     //    wm8758_write(LINPGAVOL,0x3f);
     //    wm8758_write(RINPGAVOL,0x13f);
 
     /* Enable monitoring */
-    wmcodec_write(LOUTMIX,0x17); /* Enable output mixer - BYPL2LMIX @ 0db*/
-    wmcodec_write(ROUTMIX,0x17); /* Enable output mixer - BYPR2RMIX @ 0db*/
+    //wmcodec_write(LOUTMIX,0x17); /* Enable output mixer - BYPL2LMIX @ 0db*/
+    //wmcodec_write(ROUTMIX,0x17); /* Enable output mixer - BYPR2RMIX @ 0db*/
 
     audiohw_mute(0);
 }

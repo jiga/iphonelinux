@@ -22,7 +22,7 @@
 #include "accel.h"
 #include "sdio.h"
 #include "wdt.h"
-#include "wm8958.h"
+#include "wmcodec.h"
 #include "multitouch.h"
 #include "wlan.h"
 #include "radio.h"
