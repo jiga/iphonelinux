@@ -201,7 +201,9 @@ void audiohw_play_pcm(const void* addr_in, uint32_t size, int use_speaker)
 #define ROPGAVOL    0x21
 #define SPKRVOL     0x22
 #define CLASSD1     0x23
+#define CLASSD2     0x24
 #define CLASSD3     0x25
+#define CLASSD4     0x26
 #define INMIXR1     0x27
 #define INMIXR2     0x28
 #define INMIXR3     0x29
@@ -278,17 +280,34 @@ void audiohw_preinit(void)
 {
     wmcodec_write(RESET,    0x0);    /* Reset */
 
+    wmcodec_write(AINTFCE1, 0x10); /* i2s interface for Digital Audio with 16-bits word length*/
+    wmcodec_write(AINTFCE2, 0x1a); /* u-law ADC/DAC Companding */
+    wmcodec_write(AINTFCE3, 0xa040); // select audio interface1, a040 if ADCLRC_DIR is 1
     wmcodec_write(AINTFCE4, 0x8040); 
 
-    wmcodec_write(GPIO12,0x1001);
-
-    wmcodec_write(PWRMGMT1, 0x7);   /* BIASEN = 1, PLLEN = 1, BUFIOEN = 1, VMIDSEL = 1 */
-    wmcodec_write(PWRMGMT2, 0x6800);
+    wmcodec_write(PWRMGMT1, 0x1f02); /* Enable SPKMIX,OUT3,OUT4,LOUT,ROUT,VMID */
+    wmcodec_write(PWRMGMT2, 0xe3f3); /* Enable PLL,Thermal sensor/shutdown,AINL,AINR,LIN,RIN,ADCL,ADCR */ 
+    wmcodec_write(PWRMGMT3, 0x3df3); /* Enable LON,LOP,RON,ROP,SPKMIX,LOPGA,ROPGA,LOMIX,ROMIX,DACL,DACR */ 
 
     wmcodec_write(DACCTRL,  0x0);
 
-    wmcodec_write(LOUTVOL, 0x50 | (1<<8));
-    wmcodec_write(ROUTVOL, 0x50 | (1<<8));
+    wmcodec_write(LDACVOL, 0x3b | (1<<8)); /* 0x3b = -50.250db (table 26) */
+    wmcodec_write(RDACVOL, 0x3b | (1<<8)); 
+
+    wmcodec_write(LOPGAVOL, tenthdb2master(-500) | (1<<8)); /* (table 36) */
+    wmcodec_write(ROPGAVOL, tenthdb2master(-500) | (1<<8));
+
+    wmcodec_write(LOUTVOL, tenthdb2master(-500) | (1<<8));
+    wmcodec_write(ROUTVOL, tenthdb2master(-500) | (1<<8));
+
+    wmcodec_write(CLASSD1, 0x0); /* speaker Class D mode */
+    wmcodec_write(CLASSD3, 0x0); 
+    wmcodec_write(CLASSD4, tenthdb2master(-500) | (1<<8));
+
+    /* settings for mclk= 12MHZ, sysclk= 12.288MHZ */
+    wmcodec_write(PLL1,0x88); /* Enable PLL Fraction mode, N= 8h */
+    wmcodec_write(PLL2,0x31); /* msb(K)= 31h */
+    wmcodec_write(PLL3,0x26); /* lsb(K)= 26h */
 #if 0
     wmcodec_write(LOUT2VOL, 0xb9);
     wmcodec_write(ROUT2VOL, 0x1b9);
