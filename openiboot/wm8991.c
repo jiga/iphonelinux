@@ -1,22 +1,3 @@
-/***************************************************************************
- *             __________               __   ___.
- *   Open      \______   \ ____   ____ |  | _\_ |__   _______  ___
- *   Source     |       _//  _ \_/ ___\|  |/ /| __ \ /  _ \  \/  /
- *   Jukebox    |    |   (  <_> )  \___|    < | \_\ (  <_> > <  <
- *   Firmware   |____|_  /\____/ \___  >__|_ \|___  /\____/__/\_ \
- *                     \/            \/     \/    \/            \/
- * $Id: wm8985.c 21798 2009-07-12 09:43:44Z kugel $
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
- * KIND, either express or implied.
- *
- ****************************************************************************/
-
 #include "i2c.h"
 #include "wmcodec.h"
 #include "hardware/i2s.h"
@@ -54,6 +35,18 @@ void wmcodec_write(int reg, int data)
     buffer[2] = data & 0xFF;
 
 	i2c_tx(WMCODEC_I2C, WMCODEC_I2C_SLAVE_ADDR, buffer, 3);
+}
+
+uint16_t wmcodec_read(int reg)
+{
+	uint8_t registers[1];
+	uint16_t buffer;
+
+    registers[0] = reg & 0xFF;
+
+	i2c_rx(WMCODEC_I2C, WMCODEC_I2C_SLAVE_ADDR, registers, 1, &buffer, 2);
+
+    return buffer;
 }
 
 static void iis_transfer_done(int status, int controller, int channel)
@@ -278,6 +271,17 @@ int tenthdb2master(int db)
 /* Silently enable / disable audio output */
 void audiohw_preinit(void)
 {
+    uint16_t deviceId = 0;
+    
+    deviceId = wmcodec_read(RESET);
+    if(deviceId != 0x9089)
+    {
+        bufferPrintf("audio: unknown deviceId %x\r\n", deviceId);
+        return;
+    }
+
+    bufferPrintf("audio: Found Wolfson(R) Microelctronics Codec device wm8991\r\n");
+    
     wmcodec_write(RESET,    0x0);    /* Reset */
 
     wmcodec_write(AINTFCE1, 0x10); /* i2s interface for Digital Audio with 16-bits word length*/
@@ -304,78 +308,14 @@ void audiohw_preinit(void)
     wmcodec_write(CLASSD3, 0x0); 
     wmcodec_write(CLASSD4, tenthdb2master(-500) | (1<<8));
 
+    wmcodec_write(CLOCKIN1, 0xc000); /* Timeout clock enable, fast response for volume update, all clkdiv to 1(=sysclk) */
+    wmcodec_write(CLOCKIN2, 0x4000); /* set PLL as sysclk src */
+
     /* settings for mclk= 12MHZ, sysclk= 12.288MHZ */
     wmcodec_write(PLL1,0x88); /* Enable PLL Fraction mode, N= 8h */
     wmcodec_write(PLL2,0x31); /* msb(K)= 31h */
     wmcodec_write(PLL3,0x26); /* lsb(K)= 26h */
-#if 0
-    wmcodec_write(LOUT2VOL, 0xb9);
-    wmcodec_write(ROUT2VOL, 0x1b9);
 
-    wmcodec_write(BIASCTL,  0x100); /* BIASCUT = 1 */
-
-    wmcodec_write(PWRMGMT1, 0x2d);   /* BIASEN = 1, PLLEN = 1, BUFIOEN = 1, VMIDSEL = 1 */
-    wmcodec_write(PWRMGMT2, 0x180);
-    wmcodec_write(PWRMGMT3, 0x6f);
-   
-    wmcodec_write(AINTFCE, 0x10);   /* 16-bit, I2S format */
-
-    wmcodec_write(COMPAND, 0x0);
-    wmcodec_write(CLKGEN, 0x14d);
-    wmcodec_write(SRATECTRL, 0x0);
-    wmcodec_write(GPIOCTL, 0x0);
-    wmcodec_write(JACKDETECT0, 0x0);
-
-    wmcodec_write(DACCTRL,  0x3);
-    wmcodec_write(LDACVOL,  0xff);
-    wmcodec_write(RDACVOL,  0x1ff);
-
-    wmcodec_write(JACKDETECT1, 0x0);
-
-    wmcodec_write(ADCCTL, 0x0);
-    wmcodec_write(LADCVOL, 0xff);
-    wmcodec_write(RADCVOL, 0xff);
-
-    wmcodec_write(EQ1, 0x12c);
-    wmcodec_write(EQ2, 0x2c);
-    wmcodec_write(EQ3, 0x2c);
-    wmcodec_write(EQ4, 0x2c);
-    wmcodec_write(EQ5, 0x2c);
-
-    wmcodec_write(DACLIMIT1, 0x32);
-    wmcodec_write(DACLIMIT2, 0x0);
-
-    wmcodec_write(NOTCH1, 0x0);
-    wmcodec_write(NOTCH2, 0x0);
-    wmcodec_write(NOTCH3, 0x0);
-    wmcodec_write(NOTCH4, 0x0);
-
-    wmcodec_write(PLLN, 0xa);
-   
-    wmcodec_write(PLLK1, 0x1);
-    wmcodec_write(PLLK2, 0x1fd);
-    wmcodec_write(PLLK3, 0x1e8);
-
-    wmcodec_write(THREEDCTL, 0x0);
-    wmcodec_write(OUT4ADC, 0x0);
-    wmcodec_write(BEEPCTRL, 0x0);
-
-    wmcodec_write(INCTRL, 0x0);
-    wmcodec_write(LINPGAGAIN, 0x40);
-    wmcodec_write(RINPGAGAIN, 0x140);
-
-    wmcodec_write(LADCBOOST, 0x0);
-    wmcodec_write(RADCBOOST, 0x0);
-
-    wmcodec_write(OUTCTRL,  0x186);   /* Thermal shutdown, DACL2RMIX = 1, DACR2LMIX = 1, SPKBOOST = 1 */
-    wmcodec_write(LOUTMIX, 0x15);
-    wmcodec_write(ROUTMIX, 0x15);
-
-    wmcodec_write(OUT3MIX,  0x40);
-    wmcodec_write(OUT4MIX,  0x40);
-
-    wmcodec_write(WMREG_3E, 0x8c90);
-#endif
 }
 
 void audiohw_mute(int mute)
@@ -440,7 +380,7 @@ void audiohw_set_treble_cutoff(int value)
     //wmcodec_write(EQ5, eq5_reg);
 }
 
-/* Nice shutdown of WM8985 codec */
+/* Nice shutdown of WM8991 codec */
 void audiohw_close(void)
 {
     audiohw_mute(1);
@@ -455,7 +395,7 @@ void audiohw_close(void)
 /* Note: Disable output before calling this function */
 void audiohw_set_sample_rate(int fsel)
 {
-    /* Currently the WM8985 acts as slave to the SoC I2S controller, so no
+    /* Currently the WM8991 acts as slave to the SoC I2S controller, so no
        setup is needed here. This seems to be in contrast to every other WM
        driver in Rockbox, so this may need to change in the future. */
     (void)fsel;
