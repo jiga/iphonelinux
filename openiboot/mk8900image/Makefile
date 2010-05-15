@@ -1,6 +1,6 @@
 MKIMAGEOBJS=mk8900image.o
 LIBRARIES=-L/usr/lib -lm -ldl -lpng -lcrypto -lz
-CFLAGS += -m32
+CFLAGS += 
 
 ifeq ($(ARCH), x86_64)
 	LIBXPWN=x86_64/libxpwn.a x86_64/libcommon.a
